@@ -7,6 +7,7 @@ import sys
 import os
 import numpy as np
 import time
+import csv
 
 # TODO make more efficient later
 # column by line
@@ -215,6 +216,30 @@ def cellIter(src, cols, rows):
                 row.append('')
         table.append(row)
     return table
+
+def bruteIter(seg):
+    return useEasyOcr(seg)
+
+def saveTable(table, title):
+    with open(title+'.csv', 'w') as f:
+        thisTable = csv.writer(f)
+        for row in table:
+            thisTable.writerow(row)
+
+def drawOcrTable(src,table):
+    boxes = []
+    for res in table:
+        print(res)
+        res = res[0]
+        x,y = tuple(res[0])
+        w,h = (abs(res[0][0]-res[1][0]), abs(res[1][1]-res[2][1]))
+        print(x,y,w,h)
+        boxes.append((int(x),int(y),int(w),int(h)))
+
+    for box in boxes:
+        x,y,w,h = box
+        cv.rectangle(src, (x,y), (x+w,y+h), (0,0,255),3)
+    show('ocr', src)
     
 def main(f):
     src = cv.imread(f, cv.IMREAD_COLOR)
@@ -223,7 +248,6 @@ def main(f):
         x,y,w,h = tuple(table)
         seg = src[y:y+h,x:x+w,:]
         print('-'*50)
-        print(seg.shape)
         gray = cv.cvtColor(seg, cv.COLOR_BGR2GRAY)
         gray = cv.bitwise_not(gray)
         bw = cv.adaptiveThreshold(gray, 255, cv.ADAPTIVE_THRESH_GAUSSIAN_C, 
@@ -234,10 +258,16 @@ def main(f):
             rows = rowByMorph(bw, tlines, debug=False)
             addRows(tlines, rows)
             s = time.time()
-            table = cellIter(seg, cols, rows)
+            #table = cellIter(seg, cols, rows)
+            table = bruteIter(seg)
+            #drawOcrTable(seg, table)
             e = time.time()
-            print(e-s)
+            print(f'saving table {f}')
+            print('time elapsed:',e-s)
             print(table)
+            continue
+            title = os.path.splitext(f.split('/')[-1])[0]
+            saveTable(table, title)
             input()
             #seg = drawCols(seg, cols)
             #seg = drawRows(seg, rows)
@@ -250,11 +280,10 @@ def main(f):
     - OCR on cells 
 
 '''
-
-TESTDIR1 = '/Users/minjunes/tabulator/data/simatic-st70-complete-english-2022.pdf'
-TESTDIR2 ='/Users/minjunes/tabulator/data/simatic-st70-complete-english-2022.pdf[555:558]'
-TESTDIR3 ='/Users/minjunes/tabulator/data/s71200_system_manual_en-US_en-US.pdf[1032:1036]'
-
+ROOT = os.getcwd()
+TESTDIR1 = os.path.join(ROOT,'data/simatic-st70-complete-english-2022.pdf')
+TESTDIR2 = os.path.join(ROOT, 'data/simatic-st70-complete-english-2022.pdf[555:558]')
+TESTDIR3 =os.path.join(ROOT,'data/s71200_system_manual_en-US_en-US.pdf[1032:1036]')
 if __name__ == '__main__':
     argv = sys.argv[1:]
     f = argv[0]
