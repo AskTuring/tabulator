@@ -13,11 +13,10 @@ def show(name, img):
 reader = easyocr.Reader(['en'], gpu=True, quantize=True) # this needs to run only once to load the model into memory
 import time
 def useEasyOcr(src):
-    result = reader.readtext(src)
-    r = ''
-    for res in result:
-        if res[2] > 0.5:
-            r += res[1] + " "
-        #print(f'word: {res[1]}, conf: {res[2]}')
-    return r[:-1]
+    result = reader.readtext(
+        src, 
+        batch_size=1,
+        width_ths=0.3
+        )
+    return result
     
