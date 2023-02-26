@@ -260,7 +260,7 @@ def main(f):
             s = time.time()
             #table = cellIter(seg, cols, rows)
             table = bruteIter(seg)
-            drawOcrTable(seg, table)
+            #drawOcrTable(seg, table)
             e = time.time()
             print(f'saving table {f}')
             print('time elapsed:',e-s)
@@ -280,11 +280,10 @@ def main(f):
     - OCR on cells 
 
 '''
-
-TESTDIR1 = '/Users/minjunes/tabulator/data/simatic-st70-complete-english-2022.pdf'
-TESTDIR2 ='/Users/minjunes/tabulator/data/simatic-st70-complete-english-2022.pdf[555:558]'
-TESTDIR3 ='/Users/minjunes/tabulator/data/s71200_system_manual_en-US_en-US.pdf[1032:1036]'
-
+ROOT = os.getcwd()
+TESTDIR1 = os.path.join(ROOT,'data/simatic-st70-complete-english-2022.pdf')
+TESTDIR2 = os.path.join(ROOT, 'data/simatic-st70-complete-english-2022.pdf[555:558]')
+TESTDIR3 =os.path.join(ROOT,'data/s71200_system_manual_en-US_en-US.pdf[1032:1036]')
 if __name__ == '__main__':
     argv = sys.argv[1:]
     f = argv[0]
