@@ -1,16 +1,38 @@
 from PIL import Image
 import pytesseract as tes
+import easyocr
 from pytesseract import Output
 import sys
 import cv2 as cv
 import numpy as np
 
 TEST = '/Users/minjunes/tabulator/data/s71200_system_manual_en-US_en-US.pdf/1.jpg'
-def show(img, name='default'):
+def show(name, img):
     cv.imshow(name, img)
     cv.moveWindow(name, 500, 0)
     cv.waitKey(0)
     cv.destroyWindow(name)
+
+def useTess(src):
+    show('padded',src)
+    s = time.time()
+    results = tes.image_to_data(
+        src, 
+        output_type=Output.DICT,
+        lang='eng',
+        config='--psm 11 --oem 3'
+        )
+    e = time.time()
+    print(e-s)
+    res=''
+    for i in range(0, len(results['text'])):
+        conf = int(results['conf'][i])
+        if conf > 40:
+            print(conf)
+            text = results['text'][i]
+            print(text)
+            res+=text.strip()+" " 
+    return res[:-1] 
 
 def run(argv):
     if argv:
@@ -52,7 +74,7 @@ def run(argv):
             # draw the text on the image We will be using
             # OpenCV, then draw a bounding box around the
             # text along with the text itself
-            text = "".join(text).strip()
+            text = " ".join(text).strip()
             cv.rectangle(img,
                         (x, y),
                         (x + w, y + h),
@@ -61,6 +83,19 @@ def run(argv):
         # After all, we will show the output image
     print(t/n)
     show(img)
+
+reader = easyocr.Reader(['en'], gpu=False, quantize=False) # this needs to run only once to load the model into memory
+import time
+def useEasyOcr(src):
+    result = reader.readtext(src)
+    r = ''
+    for res in result:
+        if res[2] > 0.5:
+            r += res[1] + " "
+        #print(f'word: {res[1]}, conf: {res[2]}')
+    return r[:-1]
+    
+
 
 
 if __name__ == '__main__':

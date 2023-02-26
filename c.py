@@ -18,7 +18,7 @@ class Comp:
         self.R = s[0] + s[2]
         self.T = s[1] 
         self.B = s[1] + s[3] 
-        self.List = [self.L, self.T, self.R, self.B]
+        self.List = [self.x, self.y, self.w, self.h]
         self.A = self.w*self.h
     def __repr__(self):
         return f'(x:{self.x},y:{self.y},w:{self.w},h:{self.h})'
@@ -26,7 +26,10 @@ class Comp:
         if not (key >= 0 and key < 4): raise IndexError 
         return self.List[key]
     def __iter__(self):
-        return self.List
+        yield from self.List
+
+def stretch(xss):
+    return [x for xs in xss for x in xs]
 
 def show(winname, img):
     cv.imshow(winname, img)
@@ -44,8 +47,8 @@ def drawStats(src, stats, title='drawStats'):
 def drawComps(src, comps, title='drawComps'):
     src = np.copy(src)
     for i in range(len(comps)):
-        x,y,l,r  = comps[i][0],comps[i][1],comps[i][2],comps[i][3]
-        cv.rectangle(src,(x,y),(l,r),(0,255,0),2)
+        x,y,w,h  = comps[i][0],comps[i][1],comps[i][2],comps[i][3]
+        cv.rectangle(src,(x,y),(x+w,y+h),(0,255,0),2)
     show(title,src)
     return src
 
@@ -130,6 +133,31 @@ def VD(v1: List[Comp], v2: List[Comp]):
     c1 = min(v1, key=lambda x: x.B)
     return c2.T - c1.B
 
+# useless...
+def VDS(tlines: List[List[Comp]]):
+    longest = len(sorted(tlines, key=lambda x:len(x))[-1])
+    grid: List[List[Comp]] = []
+    for tline in tlines:
+        grid.append(tline + [None]*(longest-len(tline)))
+    
+    ds = []
+    for i in range(len(grid)-1):
+        for j in range(longest):
+            if grid[i][j]:
+                if grid[i+1][j]:
+                    ds.append(abs(grid[i][j].B-grid[i+1][j].T))
+            else:
+                continue
+    return ds
+
+def VDS2(tlines):
+    ds = []
+    for i in range(len(tlines)-1):
+        for j in range(1):
+            if tlines[i]:
+                ds.append(abs(tlines[i][j].B-tlines[i+1][j].T))
+    return ds
+
 # all consecutive distances between ci, cj where j > i AND F(ci, cj)
 # LEGACY
 def allDistances(L):
@@ -159,12 +187,14 @@ def getDistances(L):
     return ds
 
 # raster scan to get text lines
-def rasterScan(L):
+def rasterScan(L) -> List[List[Comp]]:
     # remove entire bounding box
     area = sorted(L, key=lambda x: x[4])
     ysorted = sorted(area[:-1], key=lambda x: x[1])
     if not ysorted:
         return []
+    elif len(ysorted)==1:
+        return [[Comp(ysorted[0])]]
     lines,line = [],[]
     i = 0
     j = 1
@@ -222,6 +252,7 @@ def getTlines(src, debug=False):
     bw = opening(bw, vertstruct, iters=1)
     bw = opening(bw, horstruct, iters=1)
 
+    # first pass detecting all characters
     _, _, stats, _ = cv.connectedComponentsWithStatsWithAlgorithm(
         bw,
         8,
@@ -229,17 +260,23 @@ def getTlines(src, debug=False):
         cv.CCL_DEFAULT
     )
     tlines = rasterScan(stats)
+    if not tlines: return []
     ds = getDistances(tlines)
     v = getV(ds) 
-    if not v:
-        return []
+    if not v: return []
     v+=5
-    # morpholgical closing operation using size (v, 1)
-    vclose = cv.getStructuringElement(cv.MORPH_RECT, (v,1))
+    h=8
+
+    # TODO: 
+    # --> we can see how well tesseract
+    # groups words together
+
+    vclose = cv.getStructuringElement(cv.MORPH_RECT, (v,h))
     bw = closing(bw, vclose, iters=1)
     if debug:
         show('clustering text', bw)
 
+    # extractling coalesced words
     _, _, stats, _ = cv.connectedComponentsWithStatsWithAlgorithm(
         bw,
         8,
@@ -247,38 +284,9 @@ def getTlines(src, debug=False):
         cv.CCL_DEFAULT
     )
 
-    cnts, _ = cv.findContours(bw, cv.RETR_TREE, cv.CHAIN_APPROX_SIMPLE)
-    # TODO: 
-    '''
-        1) index all text lines in raster-scan order (left-right, top-bottom)
-        2) select primary candidate text lines
-        3) select more candidate text lines based on primary 
-    '''
-    # draw raw, before scan
-    allStats = np.copy(src)
-    allTlines = np.copy(src)
-    for cnt in cnts:
-        x,y,w,h  = cv.boundingRect(cnt)
-        cv.rectangle(allStats, (x,y), (x+w, y+h), (0,0,255), 2)
-    if debug:
-        show('allStats', allStats)
-
     tlines = rasterScan(stats)
-    if debug:
-        drawComps(allTlines, stretch(tlines), title='allTlines')
+    #drawComps(src, stretch(tlines), title='allTlines')
     return tlines
-'''
-# TODO:
-[x] word clustering 
-[x] candidate selection via text-line clustering
-[x]  - subcandidate selection
-[ ] construction of table from text-line clustering
-[ ] getting bbox of outline (original goal)
-- getting sub-rows
-- getting bbox of text-lines
-'''
-def stretch(xss):
-    return [x for xs in xss for x in xs]
 
 if __name__ == '__main__':
     argv = sys.argv[1:]
