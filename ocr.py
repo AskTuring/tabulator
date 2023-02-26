@@ -84,7 +84,7 @@ def run(argv):
     print(t/n)
     show(img)
 
-reader = easyocr.Reader(['en'], gpu=False, quantize=False) # this needs to run only once to load the model into memory
+reader = easyocr.Reader(['en'], gpu=True, quantize=True) # this needs to run only once to load the model into memory
 import time
 def useEasyOcr(src):
     result = reader.readtext(src)
