@@ -1,6 +1,6 @@
 from c import getTlines, Comp, getBwOtsu
 from l import getTables
-from ocr import useTess, useEasyOcr
+from ocr import useEasyOcr
 from typing import *
 import cv2 as cv
 import sys
