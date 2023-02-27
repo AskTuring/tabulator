@@ -139,43 +139,49 @@ def saveTable(table, title, idx=None):
         for row in table:
             thisTable.writerow(row)
     
-def extract(f, debug=True):
+def extract(f, debug=False):
+    times = {
+        'getTableTime': 0,
+        'getTextLineTime': 0,
+        'ocrTime': 0,
+        'fillTime': 0 
+    }
     src, title = cv.imread(f, cv.IMREAD_COLOR), os.path.splitext(''.join(f.split('/')[-2:]))[0]
     bwotsu, bwgauss = getBwOtsu(src), getBwGauss(src)
     print('='*20, f'{title}', '='*20)
     s = time.time()
-    tables = getTableOutlines(bwgauss, debug=True)
+    tables = getTableOutlines(bwgauss, debug=debug)
     e = time.time()
+    times['getTableTime']=e-s
     print(f'getTable time: {e-s}')
     for i,table in enumerate(tables):
         x,y,w,h = tuple(table)
         seg_rgb, seg_bwgauss, seg_bwotsu =seg(src,x,y,w,h), seg(bwgauss,x,y,w,h), seg(bwotsu,x,y,w,h) 
         print('-'*20, f'table {i}', '-'*20)
         s = time.time()
-        tlines = getTextLines(seg_bwotsu, debug=True)
+        tlines = getTextLines(seg_bwotsu, debug=debug)
         e = time.time()
-        tlinesTime = e-s
-        print('tlines time:',tlinesTime)
+        times['getTextLineTime']+=e-s
+        print('tlines time:',e-s)
         if tlines:
-            cols = columnByMorph(seg_bwgauss, tlines, debug=False)
-            rows = rowByMorph(seg_bwgauss, tlines, debug=False)
+            cols = columnByMorph(seg_bwgauss, tlines, debug=debug)
+            rows = rowByMorph(seg_bwgauss, tlines, debug=debug)
             addRows(tlines, rows)
             drawCols(seg_rgb, cols)
             drawRows(seg_rgb, rows)
-            if debug:
-                show('drawn', seg_rgb)
             s = time.time()
             boxes = ocr2Boxes(useEasyOcr(seg_rgb))
             e = time.time()
-            ocrTime = e-s
-            print('ocr time:',ocrTime)
+            times['ocrTime']+=e-s
+            print('ocr time:',e-s)
             s = time.time()
             table = fillCells(seg_rgb, rows, cols, boxes)
             e = time.time()
-            fillCellTime = e-s
-            print('fill time:',fillCellTime)
+            times['fillTime']+=e-s
+            print('fill time:',e-s)
             print(f'saving table {f}')
-            saveTable(table, title, idx=i)
+            #saveTable(table, title, idx=i)
+    return times
 # TODO:
 '''
     post-processing: merge "subheader" cells
@@ -190,9 +196,27 @@ if __name__ == '__main__':
     argv = sys.argv[1:]
     f = argv[0]
     if f == 'test':
+        times = []
         for f in os.listdir(TESTDIR1)[::-1]:
             f = os.path.join(TESTDIR1, f)
-            extract(f)
+            times.append(extract(f))
+
+        fin = {
+        'getTableTime': [],
+        'getTextLineTime': [],
+        'ocrTime': [],
+        'fillTime': []  
+        }         
+        for ptime in times:
+            for k in ptime:
+                fin[k] += [ptime[k]]
+        
+        for k in fin:
+            fin[k] = sum(fin[k])/len(fin[k])
+
+        print('average times:') 
+        print(fin)
+
     else:
         extract(f)
 
