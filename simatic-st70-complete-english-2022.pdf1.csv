@@ -1,0 +1,29 @@
+Article number,6AG1055-1CBOO-7BA2,6AG1055-1HBOO-7BA2,6AG1055-1MBOO-7BA2
+Based on,6ED1055-1CBOO-OBA2,GED1055-1HBOO-OBA2,6ED1055-1MBOO-OBA2
+,SIPLUS LOGOI DM8 24 V8,SIPLUS LOGOI DM8 24R V8,SIPLUS LOGOI DM8 12/24R V8
+Ambient conditions,,,
+Ambient temperature during operation,,,
+min,40 PC; = Tmin; Startup @ -25 *C,-40 *C; = Tmin; Startup @ -25 'C,40 *C; = Tmin; Startup @-25 *C
+max,70 *C; Tmax; Tmax > +55 'C max: load 0.2 A per output,"70 *C; = Tmax; Tmax > +55 ""C max. load 3 A per relay or max. total current 10 A",70 *C; Tmax; Tmax > +55 *C max: load 3 A per relay or max total current 10 A
+"At cold restart, min.",25 %C; incl. condensation / frost permitted (no commissioning under condensation conditions),-25 *C; incl. condensation / frost permitted (no commissioning under condensation conditions),25 *C; incl: condensation / frost permitted (no commissioning under condensation conditions)
+Altitude during operation relating to sea level,,,
+"Installation altitude above sea level,",5 000 m,5 O00 m,5 000 m
+max,,,
+Ambient air temperature-barometric | Tmin pressure-altitude,Tmax at 140 hPa 795 hPa (-1 000 m +2 000 m) // Tmin (Tmax 10 K) at 795 hPa 658 hPa (+2 O00 m +3 500 m) // Tmin Tmax -20 K) at 658 hPa 540 hPa (+3 500 m +5 O00 m),Tmin Tmax at 140 hPa 795 hPa OO0 m +2 O00 m) // Tmin Tmax - 10 K) at 795 hPa 658 hPa (+2 O00 m +3 500 m) // Tmin (Tmax -20 K) at 658 hPa 540 hPa (+3 500 m +5 O00 m),Tmin Tmax_ at 140 hPa 795 hPa (-1 000 m +2 000 m) // Tmin (Tmax 10 K) at 795 hPa 658 hPa (+2 000 m +3 500 m) // Tmin (Tmax -20 K) at 658 hPa 540 hPa (+3 500 m +5 O00 m)
+Relative humidity,,,
+"With condensation, tested in accordance with IEC 60068-2-38, max","100 %; RH incl: condensation / frost (no commissioning in bedewed state) , | (no commissioning in bedewed state) , horizontal installation",100 %; RH incl. condensation / frost horizontal installation,100 %; RH incl. condensation frost (no commissioning in bedewed state)  horizontal installation
+Resistance,,,
+Coolants and lubricants Resistant to commercially available coolants and lubricants,air,Yes; Incl. diesel and oil droplets in the | Yes; Incl: diesel and oil droplets in the | Yes; Incl. diesel and oil droplets in the air,air
+Use in stationary industrial systems,,,
+to biologically active substances according to EN 60721-3-3,"Yes; Class 3B2 mold, fungus and dry rot spores (with the exception of fauna); Class 3B3 on request","Yes; Class 3B2 mold, fungus and dry rot spores (with the exception of fauna); Class 3B3 on request","Yes; Class 3B2 mold, fungus and dry rot spores (with the exception of fauna); Class 3B3 on request"
+to chemically active substances according to EN 60721-3-3,Yes; Class 3C4 (RH < 75 %) incl. salt spray acc. to EN 60068-2-52 (severity degree 3);,Yes; Class 3C4 (RH < 75 %) incl. salt spray acc. to EN 60068-2-52 (severity degree 3);,Yes; Class 3C4 (RH < 75 %) incl. salt spray acc. to EN 60068-2-52 (severity degree 3);
+"to mechanically active substances | Yes; Class 3S4 incl. sand, dust, according to EN 60721-3-3",,"Yes; Class 3S4 incl. sand, dust,","Yes; Class 3S4 incl. sand, dust,"
+Use on shipslat sea,,,
+to biologically active substances according to EN 60721-3-6,,Yes; Class 6B2 mold and fungal spores | Yes; Class 6B2 mold and fungal spores | Yes; Class 6B2 mold and fungal spores (excluding fauna); Class 6B3*on request |(excluding fauna); Class 6B3*on request | (excluding fauna); Class 6B3 on request,
+to chemically active substances according to EN 60721-3-6,Yes; Class 6C3 (RH < 75 %) incl. salt spray acc. to EN 60068-2-52 (severity degree 3);,Yes; Class 6C3 (RH < 75 %) incl. salt spray acc. to EN 60068-2-52 (severity degree 3);,Yes; Class 6C3 (RH 75 %) incl. salt spray acc. to EN 60068-2-52 (severity degree 3)
+"to mechanically active substances | Yes; Class 6S3 incl, sand, dust; according to EN 60721-3-6",,"Yes; Class 6S3 incl. sand, dust;","Yes; Class 6S3 incl. sand, dust;"
+Usage in industrial process technology,,,
+Against chemically active substances acc. to EN 60654-4,Yes; Class 3 (excluding trichlorethylene),'Yes; Class 3 (excluding trichlorethylene),Yes; Class 3 (excluding trichlorethylene)
+Environmental conditions for process; measuring and control systems acc. to ANSIISA-71.04,Yes; Level GX group AB (excluding trichlorethylene; harmful gas concentrations up to the limits of EN 60721-3-3 class 3C4 permissible);,Yes; Level GX group AB (excluding trichlorethylene; harmful gas concentrations up to the limits of EN 60721-3-3 class 3C4 permissible); level LC3 (salt spray) and level LB3 (oil) | level LC3 (salt spray) and level LB3 (oil) | level LC3 (salt spray) and level LB3 (oil),Yes; Level GX group AB (excluding trichlorethylene; harmful gas concentrations up to the limits of EN 60721-3-3 class 3C4 permissible);
+Remark,,,
+"Note regarding classification of environmental conditions acc. to EN 60721, EN 60654-4 and ANSIISA-71.04",The supplied plug covers must remain in place over the unused interfaces during operationl,The supplied plug covers must remain in place over the unused interfaces during operation!,The supplied plug covers must remain in place over the unused interfaces during operationl
