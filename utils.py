@@ -2,6 +2,9 @@ import cv2 as cv
 import numpy as np
 import math
 from typing import *
+import multiprocessing
+import logging
+import torch
 
 class Box:
     def __init__(self, x,y,w,h, text=None):
@@ -173,3 +176,20 @@ def concatText(L: List[List[Box]]):
             res += box.text + ' '
     if res: return res[:-1]
     return ''
+
+logger = logging.getLogger(__name__)
+def detect_gpus():
+    cpu_count = multiprocessing.cpu_count()
+    logger.info("{} CPUs detected".format(cpu_count))
+
+    try:
+        gpus = [torch.cuda.device(i) for i in range(torch.cuda.device_count())]
+    except:
+        gpus = []
+
+    if len(gpus) == 0:
+        logger.info("No GPU detected.")
+    else:
+        logger.info("{} GPUs detected".format(len(gpus)))
+
+    return gpus

@@ -185,8 +185,13 @@ def extract(f, debug=False):
 # TODO:
 '''
     post-processing: merge "subheader" cells
+    
+    1 CPU calculates seg_rgb and puts it into queue
+    1 CPU takes batches of N seg_rgb's from queue and 
+    processes them through N gpu's in parallel, sending
+    resulting CSV files to supabase (asynchronously)
 
-'''
+''' 
 
 ROOT = os.getcwd()
 TESTDIR1 = os.path.join(ROOT,'data/simatic-st70-complete-english-2022.pdf')
