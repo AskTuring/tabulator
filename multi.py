@@ -62,12 +62,12 @@ def sim(queue, gpus, max_gpu_load):
     how to "stop" when memory usage is too high? 
 
 '''
-def processTables(queue):
+def processTables(queue, gpus, max_gpu_load):
     while queue.empty():
         print('waiting...')
         time.sleep(1)
     
-    maxChunkSize = 4
+    maxChunkSize = len(gpus) * max_gpu_load
     allChunks = []
     chunk = []
     while not queue.empty():
@@ -80,13 +80,14 @@ def processTables(queue):
         allChunks.append(chunk)
     
     for chunk in allChunks:         
-        assert(len(chunk) <= 4)
+        assert(len(chunk) <= maxChunkSize)
         threads = []
         for i, table in enumerate(chunk):
-            thread = threading.Thread(target=extract, args=(table, i))
+            i %= len(gpus)
+            thread = threading.Thread(target=extract, args=(table, gpus[i]))
             threads.append(thread)
             thread.start()
-    processTables(queue)
+    processTables(queue, gpus, max_gpu_load)
 
 @app.post('/api/textract')
 async def textract(
@@ -112,11 +113,11 @@ def spawn_readers(num_gpus):
 
 if __name__ == '__main__':
     global queue, gpus, readers, max_gpu_load
-    max_gpu_load = 8
+    max_gpu_load = 4
     queue = Manager().Queue()
     gpus = detect_gpus() 
     readers = spawn_readers(len(gpus))
-    p = Process(target=sim, args=(queue, gpus, max_gpu_load,))
+    p = Process(target=processTables, args=(queue, readers, max_gpu_load))
     p.start()
     uvicorn.run(app,host='0.0.0.0', port=3000)
     p.join()
