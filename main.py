@@ -6,6 +6,7 @@ from textract import preprocess, extract
 from models import *
 from typing import *
 from utils import detect_gpus
+from dotenv import load_dotenv
 import easyocr
 import threading
 import uvicorn
@@ -14,7 +15,8 @@ import os, json
 import time
 import random
 
-app = FastAPI()
+load_dotenv()
+app = FastAPI(root_path=os.getenv('ROOT_PATH'))
 
 def sim_extract(table: Table, i):
     time.sleep(random.uniform(0,2))

@@ -12,5 +12,5 @@ EXPOSE 3000
 
 # Start the Gunicorn server
 COPY main.py .
-ENTRYPOINT ["conda", "run", "--no-capture-output", "-n", "tabulator", "uvicorn", "main:app", "--proxy-headers", "--host", "0.0.0.0", "--port", "3000"]
+ENTRYPOINT ["conda", "run", "--no-capture-output", "-n", "tabulator", "uvicorn", "main:app", "--proxy-headers", "--host", "0.0.0.0", "--port", "3000", ]
 
