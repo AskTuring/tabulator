@@ -40,8 +40,6 @@ def getTableOutlines(bw, debug=False):
         if w*h > bw.shape[0]*bw.shape[1]/64:
             table_boxes.append([x,y,w,h])
     return table_boxes
-
-
 '''
 Extract edges and smooth image according to the logic
 1. extract edges

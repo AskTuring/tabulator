@@ -1,8 +1,10 @@
 from clustering import getTextLines, Box, F
 from layout import getTableOutlines
+from models import *
 from typing import *
 from utils import *
-import easyocr
+from pydantic import BaseModel
+import base64
 import cv2 as cv
 import sys
 import os
@@ -10,18 +12,13 @@ import time
 import csv
 import torch
 
-reader = easyocr.Reader(
-    ['en'], 
-    gpu=torch.cuda.is_available(), 
-    quantize=torch.cuda.is_available()
-    ) 
-
-def useEasyOcr(src):
+def useEasyOcr(src, reader):
     return reader.readtext(
         src,
         batch_size=16,
         width_ths=0.7,
     )
+
 # good ol line detection
 def columnByMorph(bw, tlines: List[List[Box]], debug=False) -> List[tuple]:
     thicken = cv.getStructuringElement(cv.MORPH_RECT, (3, 3))
@@ -138,8 +135,51 @@ def saveTable(table, title, idx=None):
         thisTable = csv.writer(f)
         for row in table:
             thisTable.writerow(row)
+
+def table2Csv(table) -> str:
+    res = ''
+    for row in table:
+        r = ''
+        for cell in row:
+            r += cell + ','
+        r = r[:-1]
+        res += r + '\n'
+    return res
+
+def extract(table: Table, reader):
+    src, rows, cols = table.src, table.rows, table.cols
+    boxes = ocr2Boxes(useEasyOcr(src, reader))
+    table = fillCells(src, rows, cols, boxes)
+    tableCsv = table2Csv(table)
+    print('done with table: ', table.metadata) 
+    # save to supabase
     
-def extract(f, debug=False):
+def preprocess(jpg: PdfJPG, debug=False) -> List[Table]:
+    nparr = np.fromstring(jpg.jpg, np.uint8)
+    src = cv.imdecode(nparr, cv.IMREAD_COLOR)
+    bwotsu, bwgauss = getBwOtsu(src), getBwGauss(src)
+    tableOutlines = getTableOutlines(bwgauss, debug=debug)
+    tables = []
+    for i,tableOutline in enumerate(tableOutlines):
+        x,y,w,h = tuple(tableOutline)
+        seg_rgb, seg_bwgauss, seg_bwotsu =seg(src,x,y,w,h), seg(bwgauss,x,y,w,h), seg(bwotsu,x,y,w,h) 
+        tlines = getTextLines(seg_bwotsu, debug=debug)
+        if tlines:
+            cols = columnByMorph(seg_bwgauss, tlines, debug=debug)
+            rows = rowByMorph(seg_bwgauss, tlines, debug=debug)
+            addRows(tlines, rows)
+            drawCols(seg_rgb, cols)
+            drawRows(seg_rgb, rows)
+            meta = {
+                'pdf_id': jpg.pdf_id,
+                'page': jpg.page,
+                'table_no': i
+            }
+            table = Table(seg_rgb, rows, cols, meta)
+            tables.append(table)
+    return tables
+
+def mainprocess(f, debug=False):
     times = {
         'getTableTime': 0,
         'getTextLineTime': 0,
@@ -181,16 +221,9 @@ def extract(f, debug=False):
             print('fill time:',e-s)
             print(f'saving table {f}')
             #saveTable(table, title, idx=i)
-    return times
 # TODO:
 '''
     post-processing: merge "subheader" cells
-    
-    1 CPU calculates seg_rgb and puts it into queue
-    1 CPU takes batches of N seg_rgb's from queue and 
-    processes them through N gpu's in parallel, sending
-    resulting CSV files to supabase (asynchronously)
-
 ''' 
 
 ROOT = os.getcwd()
@@ -204,7 +237,7 @@ if __name__ == '__main__':
         times = []
         for f in os.listdir(TESTDIR1)[::-1]:
             f = os.path.join(TESTDIR1, f)
-            times.append(extract(f))
+            times.append(mainprocess(f))
 
         fin = {
         'getTableTime': [],
@@ -223,6 +256,6 @@ if __name__ == '__main__':
         print(fin)
 
     else:
-        extract(f)
+        mainprocess(f)
 
     

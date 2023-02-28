@@ -25,7 +25,6 @@ class Box:
         return self.List[key]
     def __iter__(self):
         yield from self.List
-
 # cv ops
 def getPaddedSeg(src,x,y,w,h,p=5):
     p = p//2
@@ -178,6 +177,7 @@ def concatText(L: List[List[Box]]):
     return ''
 
 logger = logging.getLogger(__name__)
+
 def detect_gpus():
     cpu_count = multiprocessing.cpu_count()
     logger.info("{} CPUs detected".format(cpu_count))
@@ -193,3 +193,4 @@ def detect_gpus():
         logger.info("{} GPUs detected".format(len(gpus)))
 
     return gpus
+
