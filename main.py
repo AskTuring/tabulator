@@ -1,8 +1,7 @@
 from multiprocessing import set_start_method, Process, Manager
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from supabase import Client, create_client
-from itertools import cycle
-from fastapi import FastAPI, Form, UploadFile, HTTPException, status, Request, File, UploadFile, Form
+from fastapi import FastAPI, Form, UploadFile,File, UploadFile, Form
 from supabase import create_client, Client
 from textract import preprocess, extract
 from models import *
@@ -22,52 +21,12 @@ load_dotenv()
 app = FastAPI(root_path=os.getenv('ROOT_PATH'))
 supabase: Client = create_client(os.environ.get('SUPABASE_URL'), os.environ.get('SUPABASE_KEY'))
 
-def sim_extract(table: Table, i):
-    time.sleep(random.uniform(0,2))
-    print(f'gpuIdx {i}: ', table.meta)
 
-def sim(queue, gpus, max_gpu_load):
+def processTables(queue, readers, maxThreads):
     while queue.empty():
         print('waiting...')
         time.sleep(1)
     
-                # replace with len(gpus)
-    num_gpus = 4
-    maxChunkSize = num_gpus * max_gpu_load 
-    allChunks = []
-    chunk = []
-    while not queue.empty():
-        if len(chunk) < maxChunkSize:
-            chunk.append(queue.get())
-        else:
-            allChunks.append(chunk)
-            chunk = []
-    print('len allCHunks', len(allChunks)) 
-    if chunk:
-        allChunks.append(chunk)
-    
-    for chunk in allChunks:         
-        assert(len(chunk) <= maxChunkSize)
-        threads = []
-        s = time.time()
-        for i, table in enumerate(chunk):
-            gpuIdx = i % num_gpus
-            thread = threading.Thread(target=sim_extract, args=(table, gpuIdx))
-            threads.append(thread)
-            thread.start()
-            print(f'starting thread {i}...')
-        for thread in threads:
-            thread.join()
-        e = time.time()
-        print('time elapsed: ',e-s)
-    sim(queue, gpus, max_gpu_load)
-
-def processTables(queue, readers):
-    while queue.empty():
-        print('waiting...')
-        time.sleep(1)
-    
-    maxThreads = 32
     allChunks = []
     chunk = []
     while not queue.empty():
@@ -94,7 +53,7 @@ def processTables(queue, readers):
                 except Exception as e:
                     print(e)
 
-    processTables(queue, readers)
+    processTables(queue, readers, maxThreads)
 
 class SaveTable(BaseModel):
     pdf_id: str
@@ -125,7 +84,7 @@ async def textract(
     tables: List[Table] = preprocess(pdfJPG)
     for table in tables:
         queue.put(table)
-    return {'res': 'processing...'}
+    return {'res': f'processing page {page} of pdf_id {pdf_id}'}
 
 def spawn_readers(num_gpus):
     readers = []
@@ -151,11 +110,12 @@ def gpu_load_test(queue, iters=5):
 
 if __name__ == '__main__':
     set_start_method('spawn')
-    global queue, gpus, readers
+    global queue, gpus, readers, maxThreads
+    maxThreads = 16
     queue = Manager().Queue()
     gpus = detect_gpus() 
     readers = spawn_readers(len(gpus))
-    p = Process(target=processTables, args=(queue, readers))
+    p = Process(target=processTables, args=(queue, readers, maxThreads))
     p.start()
     test = True
     if test:

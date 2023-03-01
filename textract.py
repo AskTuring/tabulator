@@ -4,7 +4,6 @@ from models import *
 from typing import *
 from utils import *
 from pydantic import BaseModel
-import base64
 import cv2 as cv
 import sys
 import os
@@ -21,8 +20,8 @@ def get_max_gpu_memory():
     """Return the maximum memory capacity of the GPU in bytes."""
     return torch.cuda.max_memory_allocated(device=0)
 
-def useEasyOcr(src, reader):
-    # get max gpu memory and calculate threshold
+def gpu_cooldown():
+   # get max gpu memory and calculate threshold
     max_memory = get_max_gpu_memory()
     threshold = int(max_memory * 0.8)
     # check available GPU memory
@@ -30,6 +29,8 @@ def useEasyOcr(src, reader):
         print('gpu cooldown...')
         time.sleep(0.5)
     # check available GPU memory
+
+def useEasyOcr(src, reader):
     return reader.readtext(
         src,
         batch_size=16,
@@ -169,6 +170,7 @@ def extract(table: Table, reader):
     t = fillCells(src, rows, cols, boxes)
     tableCsv = table2Csv(t)
     return table, tableCsv
+
 
 def preprocess(jpg: PdfJPG, debug=False) -> List[Table]:
     nparr = np.fromstring(jpg.jpg, np.uint8)
