@@ -14,6 +14,7 @@ import logging
 import os, json
 import time
 import random
+import uuid
 
 load_dotenv()
 app = FastAPI(root_path=os.getenv('ROOT_PATH'))
@@ -74,7 +75,8 @@ def processTables(queue, gpus, max_gpu_load):
             chunk = []
     if chunk:
         allChunks.append(chunk)
-    
+
+
     for chunk in allChunks:         
         assert(len(chunk) <= maxChunkSize)
         threads = []
@@ -111,6 +113,18 @@ def spawn_readers(num_gpus):
         readers.append(reader)
     return readers
 
+def gpu_load_test(queue, iters=5):
+    testdir = '/Users/minjunes/tabulator/data/simatic-st70-complete-english-2022.pdf'
+    for i in range(iters):
+        fs = os.listdir(testdir)
+        for j,f in enumerate(fs):
+            f = os.path.join(testdir, f)
+            with open(f, 'rb') as file:
+                pdfJPG = PdfJPG(file.read(), str(uuid.uuid4()), len(fs)*i+j)
+                tables = preprocess(pdfJPG)
+                for table in tables:
+                    queue.put(table)
+
 if __name__ == '__main__':
     global queue, gpus, readers, max_gpu_load
     max_gpu_load = 8
@@ -119,7 +133,11 @@ if __name__ == '__main__':
     readers = spawn_readers(len(gpus))
     p = Process(target=processTables, args=(queue, readers, max_gpu_load))
     p.start()
-    uvicorn.run(app,host='0.0.0.0', port=3000)
+    test = True
+    if test:
+        gpu_load_test(queue)
+    else:
+        uvicorn.run(app,host='0.0.0.0', port=3000)
     p.join()
 
     
