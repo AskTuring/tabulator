@@ -4,7 +4,6 @@ from models import *
 from typing import *
 from utils import *
 from pydantic import BaseModel
-from supabase import create_client, Client
 import base64
 import cv2 as cv
 import sys
@@ -13,7 +12,6 @@ import time
 import csv
 import torch
 
-supabase: Client = create_client(os.environ.get('SUPABASE_URL'), os.environ.get('SUPABASE_KEY'))
 
 def get_gpu_memory_usage():
     """Return the current GPU memory usage in bytes."""
@@ -170,13 +168,8 @@ def extract(table: Table, reader):
     boxes = ocr2Boxes(useEasyOcr(src, reader))
     t = fillCells(src, rows, cols, boxes)
     tableCsv = table2Csv(t)
-    # send
-    supabase.table('test_csvs').insert(
-        {'name': 'test', 'csv': tableCsv}
-        ).execute()
-    print('success')
-    
-    
+    return table, tableCsv
+
 def preprocess(jpg: PdfJPG, debug=False) -> List[Table]:
     nparr = np.fromstring(jpg.jpg, np.uint8)
     src = cv.imdecode(nparr, cv.IMREAD_COLOR)

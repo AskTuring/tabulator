@@ -1,4 +1,6 @@
-from multiprocessing import Queue, Process, Manager
+from multiprocessing import set_start_method, Process, Manager
+from concurrent.futures import ThreadPoolExecutor, as_completed
+from supabase import Client, create_client
 from itertools import cycle
 from fastapi import FastAPI, Form, UploadFile, HTTPException, status, Request, File, UploadFile, Form
 from supabase import create_client, Client
@@ -18,6 +20,7 @@ import uuid
 
 load_dotenv()
 app = FastAPI(root_path=os.getenv('ROOT_PATH'))
+supabase: Client = create_client(os.environ.get('SUPABASE_URL'), os.environ.get('SUPABASE_KEY'))
 
 def sim_extract(table: Table, i):
     time.sleep(random.uniform(0,2))
@@ -59,16 +62,16 @@ def sim(queue, gpus, max_gpu_load):
         print('time elapsed: ',e-s)
     sim(queue, gpus, max_gpu_load)
 
-def processTables(queue, gpus, max_gpu_load):
+def processTables(queue, readers):
     while queue.empty():
         print('waiting...')
         time.sleep(1)
     
-    maxChunkSize = len(gpus) * max_gpu_load
+    maxThreads = 32
     allChunks = []
     chunk = []
     while not queue.empty():
-        if len(chunk) < maxChunkSize:
+        if len(chunk) < maxThreads:
             chunk.append(queue.get())
         else:
             allChunks.append(chunk)
@@ -76,16 +79,37 @@ def processTables(queue, gpus, max_gpu_load):
     if chunk:
         allChunks.append(chunk)
 
-
     for chunk in allChunks:         
-        assert(len(chunk) <= maxChunkSize)
-        threads = []
-        for i, table in enumerate(chunk):
-            i %= len(gpus)
-            thread = threading.Thread(target=extract, args=(table, gpus[i]))
-            threads.append(thread)
-            thread.start()
-    processTables(queue, gpus, max_gpu_load)
+        assert(len(chunk) <= maxThreads)
+        with ThreadPoolExecutor(max_workers=maxThreads) as executor:
+            futures = []
+            for i, table in enumerate(chunk):
+                future = executor.submit(extract, table, readers[i%len(readers)])
+                futures.append(future)
+            
+            for future in as_completed(futures):
+                try:
+                    table, tableCsv = future.result()
+                    save_table(table, tableCsv)
+                except Exception as e:
+                    print(e)
+
+    processTables(queue, readers)
+
+class SaveTable(BaseModel):
+    pdf_id: str
+    table_no: int
+    page: int
+    content: str
+
+def save_table(table: Table, tableCsv: str):
+    toSave: SaveTable = {
+        'pdf_id': table.meta['pdf_id'],
+        'table_no': table.meta['table_no'],
+        'page': table.meta['page'],
+        'content': tableCsv
+    }
+    supabase.table('pdf_tables').insert(toSave).execute()
 
 @app.get('/')
 def test():
@@ -114,7 +138,7 @@ def spawn_readers(num_gpus):
     return readers
 
 def gpu_load_test(queue, iters=5):
-    testdir = '/Users/minjunes/tabulator/data/simatic-st70-complete-english-2022.pdf'
+    testdir = os.path.join(os.getcwd(),'/data/simatic-st70-complete-english-2022.pdf')
     for i in range(iters):
         fs = os.listdir(testdir)
         for j,f in enumerate(fs):
@@ -126,12 +150,12 @@ def gpu_load_test(queue, iters=5):
                     queue.put(table)
 
 if __name__ == '__main__':
-    global queue, gpus, readers, max_gpu_load
-    max_gpu_load = 8
+    set_start_method('spawn')
+    global queue, gpus, readers
     queue = Manager().Queue()
     gpus = detect_gpus() 
     readers = spawn_readers(len(gpus))
-    p = Process(target=processTables, args=(queue, readers, max_gpu_load))
+    p = Process(target=processTables, args=(queue, readers))
     p.start()
     test = True
     if test:
