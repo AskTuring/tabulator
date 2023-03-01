@@ -68,7 +68,7 @@ def save_table(table: Table, tableCsv: str):
         'page': table.meta['page'],
         'content': tableCsv
     }
-    supabase.table('pdf_tables').insert(toSave).execute()
+    supabase.table('pdf_csvs').insert(toSave).execute()
 
 @app.get('/')
 def test():
@@ -108,6 +108,20 @@ def gpu_load_test(queue, iters=5):
                 for table in tables:
                     queue.put(table)
 
+# process from supa bucket
+def process_pdf_id(queue, bot_id, pdf_id):
+    storage = supabase.storage()
+    all_imgs = storage.get_bucket('imgs').list(bot_id + '/' + pdf_id)
+    all_imgs = [img['name'] for img in all_imgs]
+    for img in all_imgs:
+        f = os.path.join(bot_id, pdf_id, img)
+        s = storage.get_bucket('imgs').download(f)
+        pdfJPG = PdfJPG(s, pdf_id, int(os.path.splitext(img)[0]))
+        tables = preprocess(pdfJPG)
+        print(f'putting {len(tables)} tables into queue...')
+        for table in tables:
+            queue.put(table)
+
 if __name__ == '__main__':
     set_start_method('spawn')
     global queue, gpus, readers, maxThreads
@@ -117,11 +131,19 @@ if __name__ == '__main__':
     readers = spawn_readers(len(gpus))
     p = Process(target=processTables, args=(queue, readers, maxThreads))
     p.start()
-    test = True
-    if test:
+
+    mode = 'single' 
+    if mode == 'test':
         gpu_load_test(queue)
-    else:
+    elif mode == 'deploy':
         uvicorn.run(app,host='0.0.0.0', port=3000)
+    elif mode == 'single':
+        process_pdf_id(
+            queue,
+            'ff0d7ba5-0c1b-4194-9610-4411a1db63dc',
+            '6b25bf0c-c346-4d7a-a150-98a926a7430c'
+        )
+
     p.join()
 
     
