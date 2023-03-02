@@ -8,6 +8,7 @@ from models import *
 from typing import *
 from utils import detect_gpus
 from dotenv import load_dotenv
+import requests
 import easyocr
 import threading
 import uvicorn
@@ -23,37 +24,37 @@ supabase: Client = create_client(os.environ.get('SUPABASE_URL'), os.environ.get(
 
 
 def processTables(queue, readers, maxThreads):
-    while queue.empty():
-        print('waiting...')
-        time.sleep(1)
+    while True:
+        while queue.empty():
+            print('waiting...')
+            time.sleep(1)
     
-    allChunks = []
-    chunk = []
-    while not queue.empty():
-        if len(chunk) < maxThreads:
-            chunk.append(queue.get())
-        else:
+        allChunks = []
+        chunk = []
+        while not queue.empty():
+            if len(chunk) < maxThreads:
+                chunk.append(queue.get())
+            else:
+                allChunks.append(chunk)
+                chunk = []
+        if chunk:
             allChunks.append(chunk)
-            chunk = []
-    if chunk:
-        allChunks.append(chunk)
 
-    for chunk in allChunks:         
-        assert(len(chunk) <= maxThreads)
-        with ThreadPoolExecutor(max_workers=maxThreads) as executor:
-            futures = []
-            for i, table in enumerate(chunk):
-                future = executor.submit(extract, table, readers[i%len(readers)])
-                futures.append(future)
-            
-            for future in as_completed(futures):
-                try:
-                    table, tableCsv = future.result()
-                    save_table(table, tableCsv)
-                except Exception as e:
-                    print(e)
+        for chunk in allChunks:         
+            assert(len(chunk) <= maxThreads)
+            with ThreadPoolExecutor(max_workers=maxThreads) as executor:
+                futures = []
+                for i, table in enumerate(chunk):
+                    future = executor.submit(extract, table, readers[i%len(readers)])
+                    futures.append(future)
+                
+                for future in as_completed(futures):
+                    try:
+                        table, tableCsv = future.result()
+                        save_table(table, tableCsv)
+                    except Exception as e:
+                        print(e)
 
-    processTables(queue, readers, maxThreads)
 
 class SaveTable(BaseModel):
     pdf_id: str
@@ -110,17 +111,19 @@ def gpu_load_test(queue, iters=5):
 
 # process from supa bucket
 def process_pdf_id(queue, bot_id, pdf_id):
-    storage = supabase.storage()
-    all_imgs = storage.get_bucket('imgs').list(bot_id + '/' + pdf_id)
+    path = bot_id + '/' + pdf_id
+    all_imgs = supabase.storage().from_('imgs').list(path, {'limit':10000})
     all_imgs = [img['name'] for img in all_imgs]
-    for img in all_imgs:
+    for i in range(len(all_imgs)):
+        img = all_imgs[i]
+        print(f'processing img {i} out of {len(all_imgs)}')
         f = os.path.join(bot_id, pdf_id, img)
-        s = storage.get_bucket('imgs').download(f)
+        s = supabase.storage().from_('imgs').download(f)
         pdfJPG = PdfJPG(s, pdf_id, int(os.path.splitext(img)[0]))
         tables = preprocess(pdfJPG)
         print(f'putting {len(tables)} tables into queue...')
-        for table in tables:
-            queue.put(table)
+        #for table in tables:
+        #    queue.put(table)
 
 if __name__ == '__main__':
     set_start_method('spawn')
@@ -141,7 +144,7 @@ if __name__ == '__main__':
         process_pdf_id(
             queue,
             'ff0d7ba5-0c1b-4194-9610-4411a1db63dc',
-            '6b25bf0c-c346-4d7a-a150-98a926a7430c'
+            '634eee84-ee2e-4f58-af0b-eebbd9fdc2d0'
         )
 
     p.join()

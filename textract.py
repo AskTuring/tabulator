@@ -242,11 +242,12 @@ def mainprocess(f, debug=False):
 # TODO:
 '''
     post-processing: merge "subheader" cells
-
     <Subheader>,,,
     <header>,a,b,c
+
     -->
     <Subheader>+<header>,a,b,c
+
 ''' 
 
 ROOT = os.getcwd()
