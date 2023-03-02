@@ -31,8 +31,8 @@ def save_as_txt(ipath, opath, start, stop):
                 output_file.write('-'*20 + f'page {i}' + '-'*20 + '\n')
                 output_file.write(pdf_reader.pages[i].extract_text())
 
-input_file_path = '/Users/minjunes/Downloads/Siemens Manuals (chatGPT)/A/simatic-st70-complete-english-2022.pdf'
+input_file_path = '/Users/minjunes/Desktop/Siemens Manuals (chatGPT)/uploaded/SIRIUS_IC10_complete_English_2023_202301101237358995.pdf'
 output_dir_path = os.path.join(os.getcwd(), input_file_path.split('/')[-1])
 #save_first_10_page(input_file_path, output_file_path, 351,353)
 #save_as_jpgs(input_file_path, output_dir_path, 1032, 1036)
-save_as_txt(input_file_path, output_dir_path, 30, 30)
+save_as_jpgs(input_file_path, output_dir_path, 175, 175)

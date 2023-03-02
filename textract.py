@@ -4,6 +4,7 @@ from models import *
 from typing import *
 from utils import *
 from pydantic import BaseModel
+import easyocr
 import cv2 as cv
 import sys
 import os
@@ -197,7 +198,7 @@ def preprocess(jpg: PdfJPG, debug=False) -> List[Table]:
             tables.append(table)
     return tables
 
-def mainprocess(f, debug=False):
+def mainprocess(f, reader, debug=True):
     times = {
         'getTableTime': 0,
         'getTextLineTime': 0,
@@ -227,8 +228,10 @@ def mainprocess(f, debug=False):
             addRows(tlines, rows)
             drawCols(seg_rgb, cols)
             drawRows(seg_rgb, rows)
+            if debug:
+                show('drawn',seg_rgb)
             s = time.time()
-            boxes = ocr2Boxes(useEasyOcr(seg_rgb))
+            boxes = ocr2Boxes(useEasyOcr(seg_rgb, reader))
             e = time.time()
             times['ocrTime']+=e-s
             print('ocr time:',e-s)
@@ -238,9 +241,13 @@ def mainprocess(f, debug=False):
             times['fillTime']+=e-s
             print('fill time:',e-s)
             print(f'saving table {f}')
-            #saveTable(table, title, idx=i)
+            saveTable(table, title, idx=i)
 # TODO:
 '''
+    tabulator problems:
+        -- empty cells (overdrawing vertical lines, when no elements in between)
+        -- the drawn lines are too thick
+
     post-processing: merge "subheader" cells
     <Subheader>,,,
     <header>,a,b,c
@@ -249,19 +256,23 @@ def mainprocess(f, debug=False):
     <Subheader>+<header>,a,b,c
 
 ''' 
-
 ROOT = os.getcwd()
 TESTDIR1 = os.path.join(ROOT,'data/simatic-st70-complete-english-2022.pdf')
 TESTDIR2 = os.path.join(ROOT, 'data/s71200_system_manual_en-US_en-US.pdf')
-TESTDIR3 =os.path.join(ROOT,'data/s71200_system_manual_en-US_en-US.pdf[1032:1036]')
+TESTDIR3 =os.path.join(ROOT,'data/SIRIUS_IC10_complete_English_2023_202301101237358995.pdf[175:175]')
 if __name__ == '__main__':
+    reader = easyocr.Reader(
+           ['en'],
+            gpu=False,
+            quantize=False
+    )
     argv = sys.argv[1:]
     f = argv[0]
     if f == 'test':
         times = []
-        for f in os.listdir(TESTDIR1)[::-1]:
-            f = os.path.join(TESTDIR1, f)
-            times.append(mainprocess(f))
+        for f in os.listdir(TESTDIR3)[::-1]:
+            f = os.path.join(TESTDIR3, f)
+            times.append(mainprocess(f,reader))
 
         fin = {
         'getTableTime': [],
