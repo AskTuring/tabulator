@@ -8,36 +8,28 @@ import easyocr
 import cv2 as cv
 import sys
 import os
-import time
 import csv
-import torch
-
-
-def get_gpu_memory_usage():
-    """Return the current GPU memory usage in bytes."""
-    return torch.cuda.max_memory_allocated()
-
-def get_max_gpu_memory():
-    """Return the maximum memory capacity of the GPU in bytes."""
-    return torch.cuda.max_memory_allocated(device=0)
-
-def gpu_cooldown():
-   # get max gpu memory and calculate threshold
-    max_memory = get_max_gpu_memory()
-    threshold = int(max_memory * 0.8)
-    # check available GPU memory
-    while get_gpu_memory_usage() > threshold:
-        print('gpu cooldown...')
-        time.sleep(0.5)
-    # check available GPU memory
 
 def useEasyOcr(src, reader):
     return reader.readtext(
         src,
-        batch_size=16,
-        width_ths=0.7,
+        #batch_size=16,
+        width_ths=0.5,
+        height_ths=0.5,
+        low_text=0.3,
+        mag_ratio=1.5
     )
-
+# window = 10
+def columnByBucket(bw, tlines: List[List[Box]], window=30, debug=False) -> List[tuple]:
+    buckets = [[] for _ in range(bw.shape[1]//window)]
+    for i in range(len(buckets)):
+        start = i*window
+        stop = (i+1)*window
+        for line in tlines:
+            for box in line:
+                if box.L > start and box.L < stop:
+                    buckets[i].append(box)
+    lenbuckets = [len(bucket) for bucket in buckets]
 # good ol line detection
 def columnByMorph(bw, tlines: List[List[Box]], debug=False) -> List[tuple]:
     thicken = cv.getStructuringElement(cv.MORPH_RECT, (3, 3))
@@ -60,8 +52,9 @@ def columnByMorph(bw, tlines: List[List[Box]], debug=False) -> List[tuple]:
     cols = []
     for cnt in cnts:
         col = tuple(cv.boundingRect(cnt))
-        if isColumn(bw, tlines, col):
+        if isCol(bw, tlines, col):
             cols.append(col)
+    cols = removeDuplicates(cols, 0) 
     return cols
 
 def rowByMorph(bw, tlines: List[List[Box]], debug=False) -> List[tuple]:
@@ -76,16 +69,17 @@ def rowByMorph(bw, tlines: List[List[Box]], debug=False) -> List[tuple]:
     if debug:
         show(f'hor opening', horizontal)
     cnts, _ = cv.findContours(horizontal, cv.RETR_TREE, cv.CHAIN_APPROX_SIMPLE)
-
     rows = []
     for cnt in cnts:
         row = tuple(cv.boundingRect(cnt))
         if isRow(bw, tlines, row):
             rows.append(row)
+    addRows(tlines, rows)
+    rows = removeDuplicates(rows, 1) 
     return rows
 
 # TODO: rule --> column cannot STRIKE through comp
-def isColumn(src, tlines: List[List[Box]], col: tuple, thresh=0.33):
+def isCol(src, tlines: List[List[Box]], col: tuple, thresh=0.15):
     x,_,_,h = col
     if h < len(src)*thresh: return False
     isLeftMost = True
@@ -96,9 +90,7 @@ def isColumn(src, tlines: List[List[Box]], col: tuple, thresh=0.33):
             isLeftMost = False 
         if l.L > x:
             isRightMost = False
-    midL,midR = src.shape[1]//4, src.shape[1]//4*3
-    isInMiddle = x > midL and x < midR
-    return (not (isLeftMost or isRightMost)) or (isInMiddle)
+    return (not (isLeftMost or isRightMost))
 
 def isRow(src, tlines: List[List[Box]], row: tuple, thresh=0.75):
     _,y,w,_ = row
@@ -111,16 +103,14 @@ def isRow(src, tlines: List[List[Box]], row: tuple, thresh=0.75):
         isTop = False
     if greatest.B > y:
         isBottom = False
-    midT, midB = src.shape[0]//4, src.shape[0]//4*3
-    isInMiddle = y > midT and y < midB
-    return (not (isTop or isBottom)) or (isInMiddle)
+    return (not (isTop or isBottom)) 
 
 def addRows(tlines: List[List[Box]], rows: List[tuple]):
     cndRows = [max(line, key=lambda x:x.B) for line in tlines]
-    newrows = []
+    newRows = []
     for cnd in cndRows:
-        newrows.append(tuple([0,cnd.B,0,0]))
-    rows.extend(newrows)
+        newRows.append(tuple([0,cnd.B,0,0]))
+    rows.extend(newRows)
 
 def fillCells(src, rows, cols, boxes):
     rows = [(0,0,0,0)] + sorted(rows) + [(0,src.shape[0],0,0)]
@@ -172,7 +162,6 @@ def extract(table: Table, reader):
     tableCsv = table2Csv(t)
     return table, tableCsv
 
-
 def preprocess(jpg: PdfJPG, debug=False) -> List[Table]:
     nparr = np.fromstring(jpg.jpg, np.uint8)
     src = cv.imdecode(nparr, cv.IMREAD_COLOR)
@@ -198,55 +187,40 @@ def preprocess(jpg: PdfJPG, debug=False) -> List[Table]:
             tables.append(table)
     return tables
 
-def mainprocess(f, reader, debug=True):
-    times = {
-        'getTableTime': 0,
-        'getTextLineTime': 0,
-        'ocrTime': 0,
-        'fillTime': 0 
-    }
+def mainprocess(f, reader, debug=False):
+   
     src, title = cv.imread(f, cv.IMREAD_COLOR), os.path.splitext(''.join(f.split('/')[-2:]))[0]
     bwotsu, bwgauss = getBwOtsu(src), getBwGauss(src)
-    print('='*20, f'{title}', '='*20)
-    s = time.time()
     tables = getTableOutlines(bwgauss, debug=debug)
-    e = time.time()
-    times['getTableTime']=e-s
-    print(f'getTable time: {e-s}')
     for i,table in enumerate(tables):
         x,y,w,h = tuple(table)
-        seg_rgb, seg_bwgauss, seg_bwotsu =seg(src,x,y,w,h), seg(bwgauss,x,y,w,h), seg(bwotsu,x,y,w,h) 
-        print('-'*20, f'table {i}', '-'*20)
-        s = time.time()
-        tlines = getTextLines(seg_bwotsu, debug=debug)
-        e = time.time()
-        times['getTextLineTime']+=e-s
-        print('tlines time:',e-s)
+        seg_rgb, seg_bwgauss, seg_bwotsu=seg(src,x,y,w,h), seg(bwgauss,x,y,w,h), seg(bwotsu,x,y,w,h) 
+        tlines = getTextLines(seg_bwotsu, debug=debug, drawSrc=seg_rgb)
         if tlines:
             cols = columnByMorph(seg_bwgauss, tlines, debug=debug)
             rows = rowByMorph(seg_bwgauss, tlines, debug=debug)
-            addRows(tlines, rows)
             drawCols(seg_rgb, cols)
             drawRows(seg_rgb, rows)
             if debug:
-                show('drawn',seg_rgb)
-            s = time.time()
-            boxes = ocr2Boxes(useEasyOcr(seg_rgb, reader))
-            e = time.time()
-            times['ocrTime']+=e-s
-            print('ocr time:',e-s)
-            s = time.time()
+                show('cells', seg_rgb)
+
+            otsu = getBwOtsu(seg_rgb) 
+            otsu = cv.bitwise_not(otsu)
+            otsu = cv.blur(otsu, (2,2))
+            show('blurred', otsu)
+            boxes = ocr2Boxes(useEasyOcr(otsu, reader))
+            show('before', otsu)
+            drawBoxes(seg_rgb, boxes)
+            show('ocr boxes', seg_rgb)
+
             table = fillCells(seg_rgb, rows, cols, boxes)
-            e = time.time()
-            times['fillTime']+=e-s
-            print('fill time:',e-s)
-            print(f'saving table {f}')
             saveTable(table, title, idx=i)
 # TODO:
 '''
     tabulator problems:
         -- empty cells (overdrawing vertical lines, when no elements in between)
         -- the drawn lines are too thick
+        -- 
 
     post-processing: merge "subheader" cells
     <Subheader>,,,
@@ -254,6 +228,9 @@ def mainprocess(f, reader, debug=True):
 
     -->
     <Subheader>+<header>,a,b,c
+
+
+    Improve CLI
 
 ''' 
 ROOT = os.getcwd()
@@ -269,27 +246,9 @@ if __name__ == '__main__':
     argv = sys.argv[1:]
     f = argv[0]
     if f == 'test':
-        times = []
         for f in os.listdir(TESTDIR3)[::-1]:
             f = os.path.join(TESTDIR3, f)
-            times.append(mainprocess(f,reader))
-
-        fin = {
-        'getTableTime': [],
-        'getTextLineTime': [],
-        'ocrTime': [],
-        'fillTime': []  
-        }         
-        for ptime in times:
-            for k in ptime:
-                fin[k] += [ptime[k]]
-        
-        for k in fin:
-            fin[k] = sum(fin[k])/len(fin[k])
-
-        print('average times:') 
-        print(fin)
-
+            mainprocess(f,reader)
     else:
         mainprocess(f)
 

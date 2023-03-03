@@ -37,7 +37,7 @@ def getTableOutlines(bw, debug=False):
     for c in cont:
         x,y,w,h = cv.boundingRect(c)
         # remove noise
-        if w*h > bw.shape[0]*bw.shape[1]/64:
+        if w*h > bw.shape[0]*bw.shape[1]/32:
             table_boxes.append([x,y,w,h])
     return table_boxes
 '''

@@ -8,14 +8,10 @@ from models import *
 from typing import *
 from utils import detect_gpus
 from dotenv import load_dotenv
-import requests
 import easyocr
-import threading
 import uvicorn
-import logging
 import os, json
 import time
-import random
 import uuid
 
 load_dotenv()
@@ -54,7 +50,6 @@ def processTables(queue, readers, maxThreads):
                         save_table(table, tableCsv)
                     except Exception as e:
                         print(e)
-
 
 class SaveTable(BaseModel):
     pdf_id: str

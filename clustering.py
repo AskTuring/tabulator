@@ -33,7 +33,7 @@ def getUpperVal(freqs, peakIdx):
             return peakIdx
     return len(freqs)-1
 
-def getV(ds: List, debug=False):
+def getWordDistance(ds: List, debug=False):
     if not ds: return None
     ds = sorted(ds)
     mags = list(set(ds))
@@ -65,53 +65,51 @@ def getDistances(L: List[List[Box]]):
                 ds.append(D(line[i], line[i+1]))
     return ds
 
-def getTextLines(src, debug=False) -> List[List[Box]]:
-    if len(src.shape) != 2:
-        src = getBwOtsu(src)
+def getTextLines(src, debug=False, drawSrc=[]) -> List[List[Box]]:
     if debug:
-        show('bw', src)    
-    thicken = cv.getStructuringElement(cv.MORPH_RECT, (2,3))
+        show('entering tlines', src)    
+    thicken = struct(3,3)
     bw = cv.dilate(src, thicken, iterations=1)
+    stats = getConnectedComps(bw)
+    hs = [s[3] for s in stats]
+    h = int(percentile(sorted(hs), 0.04))
+    print(h)
+    bw = opening(bw, struct(1,h))
     if debug:
-        show('thickened', bw)
-    _, _, stats, _ = cv.connectedComponentsWithStatsWithAlgorithm(
-        bw,
-        8,
-        cv.CV_32S,
-        cv.CCL_DEFAULT
-    )
-    ws,hs = [s[2] for s in stats],[s[3] for s in stats]
-    w,h = int(percentile(sorted(ws), 0.03)), int(percentile(sorted(hs), 0.04))
-    vertstruct = cv.getStructuringElement(cv.MORPH_RECT, (1,h))
-    horstruct = cv.getStructuringElement(cv.MORPH_RECT, (w,1))
-    bw = opening(bw, vertstruct)
-    bw = opening(bw, horstruct)
-    _, _, stats, _ = cv.connectedComponentsWithStatsWithAlgorithm(
-        bw,
-        8,
-        cv.CV_32S,
-        cv.CCL_DEFAULT
-    )
+        show('after opening', bw)
+    stats = getConnectedComps(bw)
+    if len(stats) < 1: return [[]]
     tlines = rasterScan(stats2Boxes(stats))
-    ds = getDistances(tlines)
-    v,h = getV(ds), int(os.getenv('clusterh'))
-    if not v: return []
-    v += int(os.getenv('clusterv'))
-    vclose = cv.getStructuringElement(cv.MORPH_RECT, (v,h))
-    bw = closing(bw, vclose, iters=1)
     if debug:
-        show('clustering text', bw)
-
-    # extractling coalesced words
-    _, _, stats, _ = cv.connectedComponentsWithStatsWithAlgorithm(
-        bw,
-        8,
-        cv.CV_32SC1,
-        cv.CCL_DEFAULT
-    )
-
-    tlines = rasterScan(stats2Boxes(stats))
+        if len(drawSrc) > 0:
+            src = np.copy(drawSrc) 
+            drawBoxes(src, stretch(tlines))
+            show('words detected', src)
+    w = getWordDistance(getDistances(tlines))
+    bw = closing(bw, struct(w,1), iters=1)
+    if debug:
+        show('clustered text', bw)
+    #bw = opening(bw, struct(w,1))
+    tlines = rasterScan(stats2Boxes(getConnectedComps(bw)))
+    if debug:
+        if len(drawSrc) > 0:
+            src = np.copy(drawSrc)
+            drawBoxes(src, stretch(tlines))
+            show('boxes', src)
     return tlines
+
+# TODO
+
+'''
+- simplified algo:
+- get v1 rows,cols, cells
+- do textract, get tlines
+- get v2 rows,cols, cells
+- do textract, get actual boxes
+
+x2 time, x2 accuracy? 
+
+'''
 
 if __name__ == '__main__':
     argv = sys.argv[1:]
