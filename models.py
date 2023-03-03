@@ -17,3 +17,4 @@ class Table:
         self.rows = rows
         self.cols = cols
         self.meta = meta
+        
